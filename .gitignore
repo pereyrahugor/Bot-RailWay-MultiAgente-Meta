@@ -1,0 +1,23 @@
+# Node
+node_modules/
+dist/
+.env
+.env.*
+*.log
+
+# Credenciales y archivos sensibles
+credentials/
+*.json
+
+# Archivos temporales
+/tmp/
+tmp/
+
+# Ignorar el archivo de integración de Google Sheets (contiene rutas sensibles)
+
+*.log
+/node_modules
+/node_modules
+*.json
+*.json
+.env
