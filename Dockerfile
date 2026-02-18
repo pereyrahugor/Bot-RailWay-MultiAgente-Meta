@@ -45,15 +45,15 @@ RUN apt-get remove -y python3 make g++ git && apt-get autoremove -y && rm -rf /v
 
 FROM node:20-slim AS deploy
 
-# Instalar poppler-utils, git y openssh-client en la imagen final
-RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils git openssh-client && rm -rf /var/lib/apt/lists/*
+# Instalar poppler-utils, git, openssh-client y ca-certificates en la imagen final
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils git openssh-client ca-certificates && update-ca-certificates && rm -rf /var/lib/apt/lists/*
 
 
 WORKDIR /app
 
 
 # Asegurar carpetas críticas
-RUN mkdir -p /app/credentials /app/bot_sessions /app/tmp
+RUN mkdir -p /app/credentials /app/bot_sessions /app/groups_sessions /app/tmp
 
 
 # Copiar los artefactos necesarios desde builder

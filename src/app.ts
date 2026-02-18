@@ -263,6 +263,7 @@ const main = async () => {
         disableHttpServer: true
     });
     setGroupProvider(gp);
+    console.log('📡 [GroupSync] Registrando eventos de QR...');
 
         const handleQR = async (qrString: string) => {
             if (qrString) {
@@ -305,16 +306,18 @@ const main = async () => {
         console.log('📡 [GroupSync] Iniciando vendor...');
         setTimeout(async () => {
             try {
+                console.log('📡 [GroupSync] Ejecutando initVendor/init...');
                 if (groupProvider.initVendor) {
                     await groupProvider.initVendor();
-                    console.log('📡 [GroupSync] initVendor ejecutado.');
+                    console.log('✅ [GroupSync] initVendor finalizado.');
                 } else if ((groupProvider as any).init) {
                     await (groupProvider as any).init();
+                    console.log('✅ [GroupSync] init finalizado.');
                 }
             } catch (err) {
                 console.error('❌ [GroupSync] Error al llamar initVendor:', err);
             }
-        }, 1000);
+        }, 3000); // Aumentar a 3s para dar tiempo a la estabilización
 
     adapterProvider.on('message', (ctx) => {
         if (ctx.type === 'interactive' || ctx.type === 'button') ctx.type = EVENTS.ACTION;
