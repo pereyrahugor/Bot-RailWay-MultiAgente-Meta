@@ -53,14 +53,16 @@ const botEnabled = true;
 
 let errorReporter;
 
-// Función auxiliar para verificar el estado de ambos proveedores
 const getBotStatus = async () => {
     try {
+        console.log('[Status] Fetching status for providers...');
         // 1. Estado YCloud (Meta)
         const ycloudConfigured = !!(process.env.YCLOUD_API_KEY && process.env.YCLOUD_WABA_NUMBER);
+        console.log(`[Status] YCloud configured: ${ycloudConfigured}`);
         
         // 2. Estado Motor de Grupos (Baileys)
         const groupsReady = !!(groupProvider?.vendor?.user || groupProvider?.globalVendorArgs?.sock?.user);
+        console.log(`[Status] Groups ready: ${groupsReady}`);
         
         const sessionsDir = path.join(process.cwd(), 'bot_sessions');
         let groupsLocalActive = false;
@@ -68,10 +70,18 @@ const getBotStatus = async () => {
             const files = fs.readdirSync(sessionsDir).filter(f => f.endsWith('.json'));
             groupsLocalActive = files.includes('creds.json');
         }
+        console.log(`[Status] Groups local active: ${groupsLocalActive}`);
 
-        const groupsRemoteActive = await isSessionInDb('groups');
+        let groupsRemoteActive = false;
+        try {
+            console.log('[Status] Checking Supabase for session...');
+            groupsRemoteActive = await isSessionInDb('groups');
+            console.log(`[Status] Groups remote active: ${groupsRemoteActive}`);
+        } catch (supabaseErr) {
+            console.error('[Status] Supabase error:', supabaseErr.message);
+        }
 
-        return {
+        const statusResponse = {
             ycloud: {
                 active: ycloudConfigured,
                 status: ycloudConfigured ? 'connected' : 'error',
@@ -86,11 +96,14 @@ const getBotStatus = async () => {
                 phoneNumber: groupProvider?.vendor?.user?.id?.split(':')[0] || null
             }
         };
+        console.log('[Status] Status response ready');
+        return statusResponse;
     } catch (e) {
         console.error('[Status] Error obteniendo estado:', e);
         return { error: String(e) };
     }
 };
+
 
 const TIMEOUT_MS = 40000;
 const userTimeouts = new Map();
@@ -311,17 +324,21 @@ const main = async () => {
     });
 
     // Root Redirect
-    app.use((req, res, next) => {
-        if (req.url === "/" || req.url === "") {
-            res.writeHead(302, { 'Location': '/dashboard' });
-            return res.end();
-        }
-        next();
+    app.get("/", (req, res) => {
+        console.log('🏠 [Router] Redirecting root to /dashboard');
+        res.writeHead(302, { 'Location': '/dashboard' });
+        res.end();
     });
 
-    app.use("/js", serve(path.join(process.cwd(), "src", "js")));
-    app.use("/style", serve(path.join(process.cwd(), "src", "style")));
-    app.use("/assets", serve(path.join(process.cwd(), "src", "assets")));
+    // Static files
+    const serveJs = serve(path.join(process.cwd(), "src", "js"));
+    const serveStyle = serve(path.join(process.cwd(), "src", "style"));
+    const serveAssets = serve(path.join(process.cwd(), "src", "assets"));
+
+    app.use("/js", (req, res, next) => serveJs(req, res, next));
+    app.use("/style", (req, res, next) => serveStyle(req, res, next));
+    app.use("/assets", (req, res, next) => serveAssets(req, res, next));
+
     
     app.post('/webhook', (req, res) => {
         console.log('📩 [Webhook] Petición recibida:', JSON.stringify(req.body, null, 2));
@@ -340,14 +357,21 @@ const main = async () => {
 
     function serveHtmlPage(route, filename) {
         app.get(route, (req, res) => {
+            console.log(`📄 [Router] Serving page ${filename} for route ${route}`);
             const possible = [
                 path.join(process.cwd(), 'src', 'html', filename),
                 path.join(process.cwd(), 'html', filename),
-                path.join(__dirname, 'html', filename)
+                path.join(__dirname, 'html', filename),
+                path.join(__dirname, '..', 'src', 'html', filename)
             ];
             const found = possible.find(p => fs.existsSync(p));
-            if (found) res.sendFile(found);
-            else res.status(404).send('Not Found');
+            if (found) {
+                console.log(`✅ [Router] Found file at: ${found}`);
+                res.sendFile(found);
+            } else { 
+                console.error(`❌ [Router] Page ${filename} not found in any of:`, possible);
+                res.status(404).send('Not Found');
+            }
         });
     }
 
@@ -355,18 +379,16 @@ const main = async () => {
     serveHtmlPage("/webreset", "webreset.html");
     serveHtmlPage("/variables", "variables.html");
 
-    app.get('/dashboard', (req, res) => {
-        const dashPath = path.join(__dirname, 'html', 'dashboard-v2.html');
-        res.sendFile(dashPath);
-    });
-
     app.get("/webchat", (req, res) => {
         const p = path.join(process.cwd(), 'src', 'html', 'webchat.html');
         if (fs.existsSync(p)) res.sendFile(p);
         else res.status(404).send("Not Found");
     });
 
-    app.get("/api/dashboard-status", async (req, res) => res.json(await getBotStatus()));
+    app.get("/api/dashboard-status", async (req, res) => {
+        console.log('📡 [API] Requested dashboard status');
+        res.json(await getBotStatus());
+    });
     app.get("/api/assistant-name", (req, res) => res.json({ name: process.env.ASSISTANT_NAME || 'Asistente' }));
     
     app.get("/api/variables", async (req, res) => {
@@ -399,6 +421,13 @@ const main = async () => {
         if (fs.existsSync(p)) res.sendFile(p);
         else res.status(404).send('Not Found');
     });
+
+    app.get("/groups-qr.png", (req, res) => {
+        const p = path.join(process.cwd(), 'bot.groups.qr.png');
+        if (fs.existsSync(p)) res.sendFile(p);
+        else res.status(404).send('Not Found');
+    });
+
 
     // AssistantBridge se configurará después de iniciar el httpServer
 
