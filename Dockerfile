@@ -71,8 +71,11 @@ COPY --from=builder /app/src/style ./src/style
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 ENV PNPM_HOME=/usr/local/bin
-RUN npm cache clean --force && pnpm install --production --ignore-scripts \
-    && npm install polka @types/polka --legacy-peer-deps \
+
+
+# Limpiar cache y forzar pnpm install
+RUN pnpm install --production --ignore-scripts \
+    && pnpm add polka @types/polka --ignore-scripts \
     && rm -rf $PNPM_HOME/.npm $PNPM_HOME/.node-gyp
 
 

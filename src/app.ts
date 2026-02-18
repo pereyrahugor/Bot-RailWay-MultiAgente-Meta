@@ -62,15 +62,24 @@ const getBotStatus = async () => {
         
         // 2. Estado Motor de Grupos (Baileys)
         const groupsReady = !!(groupProvider?.vendor?.user || groupProvider?.globalVendorArgs?.sock?.user);
-        console.log(`[Status] Groups ready: ${groupsReady}`);
-        
-        const sessionsDir = path.join(process.cwd(), 'bot_sessions');
-        let groupsLocalActive = false;
-        if (fs.existsSync(sessionsDir)) {
-            const files = fs.readdirSync(sessionsDir).filter(f => f.endsWith('.json'));
-            groupsLocalActive = files.includes('creds.json');
+        console.log(`[Status] Groups ready: ${groupsReady} (Vendor: ${!!groupProvider?.vendor?.user}, Sock: ${!!groupProvider?.globalVendorArgs?.sock?.user})`);
+        if (!groupsReady) {
+            console.log(`[Status] Vendor ID: ${groupProvider?.vendor?.user?.id || 'N/A'}`);
         }
-        console.log(`[Status] Groups local active: ${groupsLocalActive}`);
+        
+        const sessionDirs = [path.join(process.cwd(), 'bot_sessions'), path.join(process.cwd(), 'groups_sessions')];
+        let groupsLocalActive = false;
+        
+        for (const dir of sessionDirs) {
+            if (fs.existsSync(dir)) {
+                const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+                if (files.includes('creds.json')) {
+                    groupsLocalActive = true;
+                    console.log(`[Status] Groups local active found in: ${dir}`);
+                    break;
+                }
+            }
+        }
 
         let groupsRemoteActive = false;
         try {
@@ -233,9 +242,13 @@ export const processUserMessage = async (
 setProcessUserMessage(processUserMessage);
 
 const main = async () => {
+    console.log('🚀 [Main] Iniciando función principal...');
     // QR Cleanup
-    const qrPath = path.join(process.cwd(), 'bot.qr.png');
-    if (fs.existsSync(qrPath)) fs.unlinkSync(qrPath);
+    const qrPath = path.join(process.cwd(), 'bot.groups.qr.png');
+    if (fs.existsSync(qrPath)) {
+        fs.unlinkSync(qrPath);
+        console.log('🧹 [Main] QR de grupos previo eliminado.');
+    }
 
     // Restore Groups
     await restoreSessionFromDb('groups');
@@ -243,12 +256,13 @@ const main = async () => {
 
     // Providers
     setAdapterProvider(createProvider(YCloudProvider, {}));
-    setGroupProvider(createProvider(BaileysProvider, {
-        version: [2, 3000, 1015970268], // Versión más estable para evitar TypeError: public
+    const gp = createProvider(BaileysProvider, {
+        version: [2, 3000, 1030817285], // Revertir a la versión del repositorio de referencia
         groupsIgnore: false,
         readStatus: false,
         disableHttpServer: true
-    }));
+    });
+    setGroupProvider(gp);
 
         const handleQR = async (qrString: string) => {
             if (qrString) {
@@ -466,7 +480,7 @@ const main = async () => {
             console.error(`❌ [API] Error obteniendo status:`, stats);
         } else {
             // @ts-ignore
-            console.log(`📡 [API] Dashboard Status -> Groups Connected: ${stats.groups.connected}, QR Exist: ${stats.groups.qr}`);
+            console.log(`📡 [API] Dashboard Status -> Groups Active: ${stats.groups.active}, QR Exist: ${stats.groups.qr}`);
         }
         res.json(stats);
     });

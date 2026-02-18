@@ -73,8 +73,5 @@
   "license": "ISC",
   "engines": {
     "node": ">=20"
-  },
-  "overrides": {
-    "sharp": "0.32.6"
   }
 }
