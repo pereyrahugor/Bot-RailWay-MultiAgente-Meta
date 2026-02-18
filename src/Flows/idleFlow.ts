@@ -8,6 +8,7 @@ import { ReconectionFlow } from './reconectionFlow';
 import { groupProvider } from '../providers/instances';
 import { ASSISTANT_MAP } from '../utils/assistantUtils';
 import { userAssignedAssistant } from '../utils/queue';
+import { sendToGroup } from '../utils/groupSender';
 
 //** Variables de entorno para el envio de msj de resumen a grupo de WS */
 const ID_GRUPO_RESUMEN = process.env.ID_GRUPO_WS ?? process.env.ID_GRUPO_RESUMEN ?? '';
@@ -72,47 +73,47 @@ const idleFlow = addKeyword(EVENTS.ACTION).addAction(
             } else {
                 // SI_RESUMEN, SI_RESUMEN_G2 o DEFAULT
                 const targetGroup = tipo.includes('G2') ? ID_GRUPO_RESUMEN_2 : ID_GRUPO_RESUMEN;
-                const resumenConLink = `${resumen}\n\n🔗 [Chat del usuario](${data.linkWS})`;
+                const resumenLimpio = resumen.replace(/https:\/\/wa\.me\/[0-9]+/g, '').trim();
+                const resumenConLink = `${resumenLimpio}\n\n🔗 [Chat del usuario](${data.linkWS})`;
 
                 try {
-                    // USAR groupProvider para enviar a grupos
-                    if (groupProvider) {
-                        await groupProvider.sendText(targetGroup, resumenConLink);
-                        console.log(`✅ Resumen enviado al grupo ${targetGroup}`);
+                    await sendToGroup(targetGroup, resumenConLink);
+                    
+                    const fotoOVideo = data["Foto o video"]?.trim() || '';
+                    if (/^s[ií]$/i.test(fotoOVideo)) {
+                        const lastImage = state.get('lastImage');
+                        const lastVideo = state.get('lastVideo');
 
-                        const fotoOVideo = data["Foto o video"]?.trim() || '';
-                        if (/^s[ií]$/i.test(fotoOVideo)) {
-                            const lastImage = state.get('lastImage');
-                            const lastVideo = state.get('lastVideo');
-
-                            if (lastImage && fs.existsSync(lastImage)) {
-                                setTimeout(async () => {
-                                    try {
+                        if (lastImage && fs.existsSync(lastImage)) {
+                            setTimeout(async () => {
+                                try {
+                                    if (groupProvider) {
                                         await groupProvider.sendImage(targetGroup, lastImage);
                                         fs.unlinkSync(lastImage);
-                                    } catch (e) {
-                                        console.error(`[idleFlow] Error enviando imagen:`, e);
                                     }
-                                }, 2000);
-                            }
+                                } catch (e) {
+                                    console.error(`[idleFlow] Error enviando imagen:`, e);
+                                }
+                            }, 2000);
+                        }
 
-                            if (lastVideo && fs.existsSync(lastVideo)) {
-                                setTimeout(async () => {
-                                    try {
+                        if (lastVideo && fs.existsSync(lastVideo)) {
+                            setTimeout(async () => {
+                                try {
+                                    if (groupProvider) {
                                         await groupProvider.sendVideo(targetGroup, lastVideo);
                                         fs.unlinkSync(lastVideo);
-                                    } catch (e) {
-                                        console.error(`[idleFlow] Error enviando video:`, e);
                                     }
-                                }, 2500);
-                            }
+                                } catch (e) {
+                                    console.error(`[idleFlow] Error enviando video:`, e);
+                                }
+                            }, 2500);
                         }
-                    } else {
-                        console.error("❌ No hay groupProvider configurado para enviar el resumen.");
                     }
                 } catch (err) {
                     console.error(`❌ Error enviando resumen al grupo:`, err?.message || err);
                 }
+
                 
                 await addToSheet(data);
                 return;

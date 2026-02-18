@@ -9,21 +9,27 @@
 <body>
     <div class="card">
         <h1>🤖 Estado del Bot</h1>
-        <p>Estado de Sesión: <span class="status" id="session-status">Cargando...</span></p> 
+        <p>Estado de Sesión: <span class="status" id="session-status">Cargando...</span></p>
         <div id="session-error"></div>
         <div id="qr-section" style="display:none">
             <div class="qr-container">
                 <h3>Escanea el código QR con WhatsApp</h3>
                 <img src="/qr.png" class="qr" alt="Cargando QR..." onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-                <p style="display:none; color:orange;">Generando QR... por favor espera.</p>  
+                <p style="display:none; color:orange;">Generando QR... por favor espera.</p>
                 <p class="info-text">La página se actualizará automáticamente cuando aparezca el QR.</p>
             </div>
         </div>
         <div id="session-info" class="info-text" style="display:none"></div>
+        
+        <div class="groups-section" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <h3>📦 Resúmenes a Grupos</h3>
+            <p id="groups-status" class="info-text">Verificando estado de grupos...</p>
+            <a href="/groups-qr.png" target="_blank" class="btn btn-secondary">Ver QR de Grupos</a>
+        </div>
     </div>
     <div class="card">
         <h2>💬 WebChat</h2>
-        <p class="info-text">Accede a la interfaz de chat web para pruebas o soporte.</p>     
+        <p class="info-text">Accede a la interfaz de chat web para pruebas o soporte.</p>
         <a href="/webchat" class="btn">Abrir WebChat</a>
     </div>
     <div class="card">

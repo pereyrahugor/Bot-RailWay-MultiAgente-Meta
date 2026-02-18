@@ -1,12 +1,9 @@
-import { EVENTS } from "@builderbot/bot";
-import { BaileysProvider } from "builderbot-provider-sherpa";
+import { sendToGroup } from "./groupSender";
 
 class ErrorReporter {
-    private provider: BaileysProvider;
     private groupId: string;
 
-    constructor(provider: BaileysProvider, groupId: string) {
-        this.provider = provider;
+    constructor(provider: any, groupId: string) {
         this.groupId = groupId;
     }
 
@@ -16,7 +13,7 @@ class ErrorReporter {
             `whatsappLink = ${userLink}`;
 
         try {
-            await this.provider.sendMessage(this.groupId, errorMessage, {});
+            await sendToGroup(this.groupId, errorMessage);
         } catch (sendError) {
             console.error("Error al enviar el mensaje de error al grupo:", sendError);
         }
