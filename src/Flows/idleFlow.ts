@@ -11,7 +11,7 @@ import { userAssignedAssistant } from '../utils/queue';
 import { sendToGroup } from '../utils/groupSender';
 
 //** Variables de entorno para el envio de msj de resumen a grupo de WS */
-const ID_GRUPO_RESUMEN = process.env.ID_GRUPO_WS ?? process.env.ID_GRUPO_RESUMEN ?? '';
+const ID_GRUPO_RESUMEN = process.env.ID_GRUPO_RESUMEN ?? '';
 const ID_GRUPO_RESUMEN_2 = process.env.ID_GRUPO_RESUMEN_2 ?? '';
 
 //** Flow para cierre de conversación, generación de resumen y envio a grupo de WS */

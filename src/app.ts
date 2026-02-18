@@ -12,7 +12,7 @@ import { YCloudProvider } from "./providers/YCloudProvider";
 import { BaileysProvider } from "builderbot-provider-sherpa";
 import { adapterProvider, groupProvider, setAdapterProvider, setGroupProvider } from "./providers/instances";
 import { restoreSessionFromDb, startSessionSync, deleteSessionFromDb, isSessionInDb } from "./utils/sessionSync";
-import { toAsk } from "@builderbot-plugins/openai-assistants";
+import { toAsk, httpInject } from "@builderbot-plugins/openai-assistants";
 import { typing } from "./utils/presence";
 import { idleFlow } from "./Flows/idleFlow";
 import { welcomeFlowTxt } from "./Flows/welcomeFlowTxt";
@@ -46,7 +46,7 @@ const webChatManager = new WebChatManager();
 
 /** Puerto en el que se ejecutará el servidor (Railway usa 8080 por defecto) */
 const PORT = process.env.PORT || 8080;
-const ID_GRUPO_RESUMEN = process.env.ID_GRUPO_WS ?? "";
+const ID_GRUPO_RESUMEN = process.env.ID_GRUPO_RESUMEN ?? "";
 
 // Estado global para encender/apagar el bot
 const botEnabled = true;
@@ -289,46 +289,84 @@ const main = async () => {
     console.log('[Main] createBot finalizado.');
 
     errorReporter = new ErrorReporter(groupProvider, ID_GRUPO_RESUMEN);
-
     startSessionSync('groups');
-    // httpInject(adapterProvider.server);
 
     const app = adapterProvider.server;
+    
+    // Middlewares esenciales (DEBEN IR ANTES DE LAS RUTAS)
     app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({ extended: true }));
 
-    // Middleware Compatibilidad
+    // Middleware para normalizar URLs
     app.use((req, res, next) => {
+        if (req.url.includes('//')) {
+            req.url = req.url.replace(/\/+/g, '/');
+        }
+        next();
+    });
+
+    // Middleware de Compatibilidad (res.json, res.send, res.sendFile para Polka)
+    app.use((req, res, next) => {
+        // @ts-ignore
         res.status = (c) => { res.statusCode = c; return res; };
+        // @ts-ignore
         res.send = (b) => {
             if (res.headersSent) return res;
-            if (typeof b === 'object') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(b)); }
-            else res.end(b || '');
+            if (typeof b === 'object') {
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify(b || null));
+            } else {
+                res.end(b || '');
+            }
             return res;
         };
+        // @ts-ignore
         res.json = (d) => {
             if (res.headersSent) return res;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify(d));
+            res.end(JSON.stringify(d || null));
             return res;
         };
+        // @ts-ignore
         res.sendFile = (f) => {
             if (res.headersSent) return;
-            if (fs.existsSync(f)) {
-                const ext = path.extname(f).toLowerCase();
-                const mimes = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg' };
-                res.setHeader('Content-Type', mimes[ext] || 'application/octet-stream');
-                fs.createReadStream(f).pipe(res);
-            } else { res.statusCode = 404; res.end('Not Found'); }
+            try {
+                if (fs.existsSync(f)) {
+                    const ext = path.extname(f).toLowerCase();
+                    const mimes = { 
+                        '.html': 'text/html', 
+                        '.js': 'application/javascript', 
+                        '.css': 'text/css', 
+                        '.png': 'image/png', 
+                        '.jpg': 'image/jpeg',
+                        '.gif': 'image/gif',
+                        '.svg': 'image/svg+xml',
+                        '.json': 'application/json'
+                    };
+                    res.setHeader('Content-Type', mimes[ext] || 'application/octet-stream');
+                    fs.createReadStream(f).pipe(res);
+                } else {
+                    res.statusCode = 404;
+                    res.end('Not Found');
+                }
+            } catch (e) {
+                res.statusCode = 500;
+                res.end('Internal Error');
+            }
         };
         next();
     });
 
     // Root Redirect
-    app.get("/", (req, res) => {
-        console.log('🏠 [Router] Redirecting root to /dashboard');
-        res.writeHead(302, { 'Location': '/dashboard' });
-        res.end();
+    app.use((req, res, next) => {
+        if (req.url === "/" || req.url === "") {
+            res.writeHead(302, { 'Location': '/dashboard' });
+            return res.end();
+        }
+        next();
     });
+
+    httpInject(app);
 
     // Static files
     const serveJs = serve(path.join(process.cwd(), "src", "js"));
