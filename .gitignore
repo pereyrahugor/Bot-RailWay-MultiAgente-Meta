@@ -7,17 +7,12 @@ dist/
 
 # Credenciales y archivos sensibles
 credentials/
-*.json
 
 # Archivos temporales
 /tmp/
 tmp/
+bot_sessions/
 
-# Ignorar el archivo de integración de Google Sheets (contiene rutas sensibles)
-
+# Logs y otros
 *.log
 /node_modules
-/node_modules
-*.json
-*.json
-.env
