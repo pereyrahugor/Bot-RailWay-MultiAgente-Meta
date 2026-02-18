@@ -45,15 +45,15 @@ RUN apt-get remove -y python3 make g++ git && apt-get autoremove -y && rm -rf /v
 
 FROM node:20-slim AS deploy
 
-# Instalar poppler-utils en la imagen final para que pdftoppm esté disponible
-RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
+# Instalar poppler-utils, git y openssh-client en la imagen final
+RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils git openssh-client && rm -rf /var/lib/apt/lists/*
 
 
 WORKDIR /app
 
 
-# Asegurar que la carpeta de credenciales exista
-RUN mkdir -p /app/credentials
+# Asegurar carpetas críticas
+RUN mkdir -p /app/credentials /app/bot_sessions /app/tmp
 
 
 # Copiar los artefactos necesarios desde builder
@@ -71,12 +71,10 @@ COPY --from=builder /app/src/style ./src/style
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 ENV PNPM_HOME=/usr/local/bin
-RUN mkdir /app/tmp
 RUN npm cache clean --force && pnpm install --production --ignore-scripts \
+    && npm install polka @types/polka --legacy-peer-deps \
     && rm -rf $PNPM_HOME/.npm $PNPM_HOME/.node-gyp
 
-# Parchear la versión de Baileys automáticamente
-RUN sed -i 's/version: \[[0-9, ]*\]/version: [2, 3000, 1023223821]/' node_modules/@builderbot/provider-baileys/dist/index.cjs
 
 RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs -m nodejs
 

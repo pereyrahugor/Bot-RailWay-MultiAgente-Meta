@@ -250,25 +250,57 @@ const main = async () => {
         disableHttpServer: true
     }));
 
-    const handleQR = async (qrString: string) => {
-        if (qrString) {
-            const qrPath = path.join(process.cwd(), 'bot.groups.qr.png');
-            await QRCode.toFile(qrPath, qrString, { scale: 10, margin: 2 });
-        }
-    };
+        const handleQR = async (qrString: string) => {
+            if (qrString) {
+                console.log(`⚡ [GroupSync] QR detectado (largo: ${qrString.length}). Generando bot.groups.qr.png...`);
+                const qrPath = path.join(process.cwd(), 'bot.groups.qr.png');
+                await QRCode.toFile(qrPath, qrString, { scale: 10, margin: 2 });
+                console.log(`✅ [GroupSync] QR guardado en ${qrPath}`);
+            }
+        };
 
-    groupProvider.on('require_action', async (p) => handleQR(typeof p === 'string' ? p : p?.qr || p?.code));
-    groupProvider.on('qr', handleQR);
-    groupProvider.on('ready', () => {
-        console.log('✅ [GroupSync] Motor de grupos conectado.');
-        const p = path.join(process.cwd(), 'bot.groups.qr.png');
-        if (fs.existsSync(p)) fs.unlinkSync(p);
-    });
+        groupProvider.on('require_action', async (p) => {
+            console.log('⚡ [GroupSync] require_action received.');
+            const qr = typeof p === 'string' ? p : p?.qr || p?.code;
+            await handleQR(qr);
+        });
 
-    setTimeout(async () => {
-        if (groupProvider.initVendor) await groupProvider.initVendor();
-        else if ((groupProvider as any).init) await (groupProvider as any).init();
-    }, 1000);
+        groupProvider.on('qr', async (qr: string) => {
+            console.log('⚡ [GroupSync] event qr received.');
+            await handleQR(qr);
+        });
+
+        groupProvider.on('auth_require', async (qr: string) => {
+            console.log('⚡ [GroupSync] event auth_require received.');
+            await handleQR(qr);
+        });
+
+        groupProvider.on('ready', () => {
+            console.log('✅ [GroupSync] Motor de grupos conectado satisfactoriamente.');
+            const p = path.join(process.cwd(), 'bot.groups.qr.png');
+            if (fs.existsSync(p)) {
+                try {
+                    fs.unlinkSync(p);
+                    console.log('🗑️ [GroupSync] QR eliminado tras conexión exitosa.');
+                } catch (e) {
+                    console.error('⚠️ [GroupSync] No se pudo eliminar el QR:', e);
+                }
+            }
+        });
+
+        console.log('📡 [GroupSync] Iniciando vendor...');
+        setTimeout(async () => {
+            try {
+                if (groupProvider.initVendor) {
+                    await groupProvider.initVendor();
+                    console.log('📡 [GroupSync] initVendor ejecutado.');
+                } else if ((groupProvider as any).init) {
+                    await (groupProvider as any).init();
+                }
+            } catch (err) {
+                console.error('❌ [GroupSync] Error al llamar initVendor:', err);
+            }
+        }, 1000);
 
     adapterProvider.on('message', (ctx) => {
         if (ctx.type === 'interactive' || ctx.type === 'button') ctx.type = EVENTS.ACTION;
@@ -424,8 +456,15 @@ const main = async () => {
     });
 
     app.get("/api/dashboard-status", async (req, res) => {
-        console.log('📡 [API] Requested dashboard status');
-        res.json(await getBotStatus());
+        const stats = await getBotStatus();
+        // @ts-ignore
+        if (stats.error) {
+            console.error(`❌ [API] Error obteniendo status:`, stats);
+        } else {
+            // @ts-ignore
+            console.log(`📡 [API] Dashboard Status -> Groups Connected: ${stats.groups.connected}, QR Exist: ${stats.groups.qr}`);
+        }
+        res.json(stats);
     });
     app.get("/api/assistant-name", (req, res) => res.json({ name: process.env.ASSISTANT_NAME || 'Asistente' }));
     
@@ -455,15 +494,25 @@ const main = async () => {
     });
 
     app.get("/qr.png", (req, res) => {
-        const p = path.join(process.cwd(), 'bot.groups.qr.png');
-        if (fs.existsSync(p)) res.sendFile(p);
-        else res.status(404).send('Not Found');
+        const qrPath = path.join(process.cwd(), 'bot.groups.qr.png');
+        if (fs.existsSync(qrPath)) {
+            res.setHeader('Content-Type', 'image/png');
+            fs.createReadStream(qrPath).pipe(res);
+        } else {
+            res.statusCode = 404;
+            res.end('QR not found');
+        }
     });
 
     app.get("/groups-qr.png", (req, res) => {
-        const p = path.join(process.cwd(), 'bot.groups.qr.png');
-        if (fs.existsSync(p)) res.sendFile(p);
-        else res.status(404).send('Not Found');
+        const qrPath = path.join(process.cwd(), 'bot.groups.qr.png');
+        if (fs.existsSync(qrPath)) {
+            res.setHeader('Content-Type', 'image/png');
+            fs.createReadStream(qrPath).pipe(res);
+        } else {
+            res.statusCode = 404;
+            res.end('QR not found');
+        }
     });
 
 
