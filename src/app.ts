@@ -93,7 +93,7 @@ const getBotStatus = async () => {
                 source: groupsReady ? 'connected' : (groupsLocalActive ? 'local' : 'none'),
                 hasRemote: groupsRemoteActive,
                 qr: fs.existsSync(path.join(process.cwd(), 'bot.groups.qr.png')),
-                phoneNumber: groupProvider?.vendor?.user?.id?.split(':')[0] || null
+                phoneNumber: groupProvider?.vendor?.user?.id?.split(':')[0] || groupProvider?.globalVendorArgs?.sock?.user?.id?.split(':')[0] || null
             }
         };
         console.log('[Status] Status response ready');
@@ -244,7 +244,7 @@ const main = async () => {
     // Providers
     setAdapterProvider(createProvider(YCloudProvider, {}));
     setGroupProvider(createProvider(BaileysProvider, {
-        version: [2, 3000, 1030817285],
+        version: [2, 3000, 1015970268], // Versión más estable para evitar TypeError: public
         groupsIgnore: false,
         readStatus: false,
         disableHttpServer: true
@@ -261,8 +261,8 @@ const main = async () => {
 
         groupProvider.on('require_action', async (p) => {
             console.log('⚡ [GroupSync] require_action received.');
-            const qr = typeof p === 'string' ? p : p?.qr || p?.code;
-            await handleQR(qr);
+            const qr = (typeof p === 'string') ? p : (p?.qr || p?.payload?.qr || p?.code);
+            if (qr) await handleQR(qr);
         });
 
         groupProvider.on('qr', async (qr: string) => {
@@ -321,7 +321,11 @@ const main = async () => {
     console.log('[Main] createBot finalizado.');
 
     errorReporter = new ErrorReporter(groupProvider, ID_GRUPO_RESUMEN);
-    startSessionSync('groups');
+    
+    // Iniciar sincronización de sesión
+    if (groupProvider) {
+        startSessionSync('groups');
+    }
 
     const app = adapterProvider.server;
     
@@ -488,9 +492,34 @@ const main = async () => {
     });
 
     app.post("/api/delete-session", async (req, res) => {
-        const type = req.body.type || 'groups';
-        await deleteSessionFromDb(type);
-        res.json({ success: true });
+        try {
+            const type = req.body.type || 'groups';
+            console.log(`🗑️ [API] Borrando sesión: ${type}`);
+            
+            // 1. Borrar de DB
+            await deleteSessionFromDb(type);
+            
+            // 2. Borrar local
+            const sessionDirs = ['bot_sessions', 'groups_sessions', 'credentials'];
+            sessionDirs.forEach(dir => {
+                const p = path.join(process.cwd(), dir);
+                if (fs.existsSync(p)) {
+                    console.log(`[API] Borrando carpeta local: ${p}`);
+                    fs.rmSync(p, { recursive: true, force: true });
+                }
+            });
+
+            // 3. Borrar QR
+            const qrFile = path.join(process.cwd(), 'bot.groups.qr.png');
+            if (fs.existsSync(qrFile)) fs.unlinkSync(qrFile);
+
+            // 4. Reiniciar el bot para aplicar cambios
+            res.json({ success: true, message: "Sesión eliminada. Reiniciando bot..." });
+            setTimeout(() => process.exit(0), 1500);
+        } catch (err) {
+            console.error('❌ Error al borrar sesión:', err);
+            res.status(500).json({ success: false, error: err.message });
+        }
     });
 
     app.get("/qr.png", (req, res) => {

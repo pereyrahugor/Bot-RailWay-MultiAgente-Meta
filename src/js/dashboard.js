@@ -28,10 +28,13 @@ async function fetchStatus() {
 
         // 2. Estado de Grupos (Baileys)
         if (data.groups) {
+            const qrBtn = document.querySelector('.groups-section .btn');
+
             if (data.groups.active) {
                 groupsStatusEl.textContent = `✅ Conectado (${data.groups.phoneNumber || 'Motor de Grupos'})`;
                 groupsStatusEl.style.color = '#28a745';
                 if (qrSection) qrSection.style.display = 'none';
+                if (qrBtn) qrBtn.style.display = 'none';
             } else if (data.groups.qr) {
                 groupsStatusEl.textContent = '⚠️ Esperando vinculación (Escanea el QR abajo)';
                 groupsStatusEl.style.color = '#ffc107';
@@ -40,16 +43,20 @@ async function fetchStatus() {
                     const qrImg = qrSection.querySelector('.qr');
                     if (qrImg) qrImg.src = '/groups-qr.png?t=' + Date.now();
                 }
+                if (qrBtn) qrBtn.style.display = 'inline-block';
             } else if (data.groups.source === 'local') {
                 groupsStatusEl.textContent = '🔄 Restaurando sesión local...';
                 groupsStatusEl.style.color = '#17a2b8';
+                if (qrBtn) qrBtn.style.display = 'none';
             } else if (data.groups.hasRemote) {
                 groupsStatusEl.textContent = '📥 Descargando sesión desde Supabase...';
                 groupsStatusEl.style.color = '#17a2b8';
+                if (qrBtn) qrBtn.style.display = 'none';
             } else {
-                groupsStatusEl.textContent = '❌ Desconectado (No hay sesión)';
+                groupsStatusEl.textContent = '❌ Desconectado (Generando QR...)';
                 groupsStatusEl.style.color = '#dc3545';
                 if (qrSection) qrSection.style.display = 'block';
+                if (qrBtn) qrBtn.style.display = 'none';
             }
         }
 
