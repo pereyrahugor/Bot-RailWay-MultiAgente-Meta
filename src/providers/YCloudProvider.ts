@@ -35,26 +35,23 @@ class YCloudProvider extends ProviderClass {
         try {
             const fs = await import('fs');
             const path = await import('path');
-            const media = ctx.media || ctx.payload?.image || ctx.payload?.video || ctx.payload?.document;
+            const media = ctx.media || ctx.payload?.image || ctx.payload?.video || ctx.payload?.document || ctx.payload?.audio;
             
             if (!media) return null;
 
             const fileUrl = media.link || media.url;
             
-            // Si no hay URL directa pero hay ID (formato Meta), habría que usar la API de Meta para descargar.
-            // Por simplicidad y asumiendo que YCloud entrega links o que manejamos el ID como link en algunos casos:
             if (!fileUrl && media.id) {
-                // Si es YCloud, podemos intentar obtener el link si no venía
-                console.log(`[YCloudProvider] Media ID detectado: ${media.id}. Intentando descargar...`);
-                // Aquí se podría implementar la lógica de descarga vía API de YCloud/Meta
-                // Por ahora, si no hay URL, no podemos descargar fácilmente sin más config.
+                console.log(`[YCloudProvider] Media ID detectado: ${media.id}. Sin link directo.`);
                 return null;
             }
 
             if (!fileUrl) return null;
 
+            console.log(`[YCloudProvider] Descargando archivo desde: ${fileUrl}`);
             const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-            const fileName = `${Date.now()}-${media.id || 'file'}${path.extname(fileUrl) || '.jpg'}`;
+            const ext = path.extname(fileUrl) || (media.mimetype ? `.${media.mimetype.split('/')[1]}` : '.bin');
+            const fileName = `${Date.now()}-${media.id || 'file'}${ext}`;
             const fullPath = path.join(options.path, fileName);
             
             fs.writeFileSync(fullPath, response.data);
@@ -159,13 +156,32 @@ class YCloudProvider extends ProviderClass {
                     phoneNumber: msg.from.replace('+', ''),
                     name: msg.customerProfile?.name || 'User',
                     type: msg.type,
-                    payload: msg
+                    payload: msg,
+                    message: {}
                 };
 
-                // Si es imagen, adjuntamos la info de media
-                if (msg.type === 'image' && msg.image) {
-                    formatedMessage.body = '_event_media_';
-                    formatedMessage.media = msg.image;
+                // Inyectar compatibilidad con Baileys y estandarizar media
+                if (msg.location) {
+                    formatedMessage.message.location = {
+                        degreesLatitude: msg.location.latitude,
+                        degreesLongitude: msg.location.longitude
+                    };
+                }
+                
+                const mediaObject = msg.image || msg.audio || msg.video || msg.document;
+                if (mediaObject) {
+                    formatedMessage.media = { 
+                        link: mediaObject.link || mediaObject.url, 
+                        mimetype: mediaObject.mime_type || mediaObject.mimetype 
+                    };
+                    
+                    if (msg.image) {
+                        formatedMessage.message.imageMessage = { mimetype: msg.image.mime_type };
+                        formatedMessage.body = '_event_media_';
+                    }
+                    if (msg.audio) formatedMessage.message.audioMessage = { mimetype: msg.audio.mime_type };
+                    if (msg.video) formatedMessage.message.videoMessage = { mimetype: msg.video.mime_type };
+                    if (msg.document) formatedMessage.message.documentMessage = { mimetype: msg.document.mime_type };
                 }
 
                 this.emit('message', formatedMessage);
@@ -192,12 +208,31 @@ class YCloudProvider extends ProviderClass {
                                     phoneNumber: msg.from.replace('+', ''),
                                     name: contact?.profile?.name || 'User',
                                     type: msg.type,
-                                    payload: msg
+                                    payload: msg,
+                                    message: {}
                                 };
 
-                                if (msg.type === 'image' && msg.image) {
-                                    formatedMessage.body = '_event_media_';
-                                    formatedMessage.media = msg.image;
+                                if (msg.location) {
+                                    formatedMessage.message.location = {
+                                        degreesLatitude: msg.location.latitude,
+                                        degreesLongitude: msg.location.longitude
+                                    };
+                                }
+
+                                const mediaObject = msg.image || msg.audio || msg.video || msg.document;
+                                if (mediaObject) {
+                                    formatedMessage.media = { 
+                                        link: mediaObject.link || mediaObject.url, 
+                                        mimetype: mediaObject.mime_type || mediaObject.mimetype 
+                                    };
+
+                                    if (msg.image) {
+                                        formatedMessage.message.imageMessage = { mimetype: msg.image.mime_type };
+                                        formatedMessage.body = '_event_media_';
+                                    }
+                                    if (msg.audio) formatedMessage.message.audioMessage = { mimetype: msg.audio.mime_type };
+                                    if (msg.video) formatedMessage.message.videoMessage = { mimetype: msg.video.mime_type };
+                                    if (msg.document) formatedMessage.message.documentMessage = { mimetype: msg.document.mime_type };
                                 }
 
                                 this.emit('message', formatedMessage);

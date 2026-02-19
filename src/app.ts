@@ -320,7 +320,25 @@ const main = async () => {
         }, 3000); // Aumentar a 3s para dar tiempo a la estabilización
 
     adapterProvider.on('message', (ctx) => {
-        if (ctx.type === 'interactive' || ctx.type === 'button') ctx.type = EVENTS.ACTION;
+        // 1. Normalizar Botones/Interacciones
+        if (ctx.type === 'interactive' || ctx.type === 'button') {
+            ctx.type = EVENTS.ACTION; // Dispara flows de botones
+        }
+        // 2. Normalizar Audio -> Nota de Voz
+        else if (ctx.type === 'audio') {
+            const isVoice = ctx.payload?.audio?.voice; // Check específico de YCloud
+            ctx.type = isVoice ? EVENTS.VOICE_NOTE : EVENTS.MEDIA;
+        } 
+        // 3. Normalizar el resto de Medios
+        else if (ctx.type === 'image' || ctx.type === 'video') {
+            ctx.type = EVENTS.MEDIA;
+        } 
+        else if (ctx.type === 'document') {
+            ctx.type = EVENTS.DOCUMENT;
+        } 
+        else if (ctx.type === 'location') {
+            ctx.type = EVENTS.LOCATION;
+        }
     });
 
     await updateMain();
