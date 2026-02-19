@@ -1,0 +1,41 @@
+# Deploy and Host WhatsApp Multiagent AI Bot on Railway
+
+WhatsApp Multiagent AI Bot is a powerful Node.js solution that integrates OpenAI's Assistant API (including Vision and File Search) with a sophisticated multi-agent architecture. Built on BuilderBot technology, it allows a receptionist assistant to intelligently route conversations to specialized agents (sales, support, etc.) across multiple messaging providers like WhatsApp (Baileys & YCloud). It features seamless integrations with Google Sheets, Google Calendar, and Supabase, all manageable via a built-in web dashboard.
+
+## About Hosting WhatsApp Multiagent AI Bot
+
+Hosting this bot on Railway provides enterprise-grade infrastructure with zero-config scaling for complex AI workflows. It supports advanced multi-agent orchestration, allowing for intelligent intent detection and seamless handovers between specialized virtual assistants. The deployment includes a web dashboard for real-time monitoring of agent performance, conversation summaries, and environment variable updates, ensuring your business logic is always synchronized and highly available.
+
+## Why Deploy WhatsApp Multiagent AI Bot on Railway?
+
+Railway offers a robust platform that simplifies the management of multi-agent AI stacks and messaging tokens. It provides automatic SSL, continuous deployment from GitHub, and vertical/horizontal scaling without manual server management. By hosting here, you ensure low-latency response times for your AI receptionists and expert agents, keeping your data secure and your business critical communications responsive 24/7.
+
+## Common Use Cases
+
+- **AI Multi-Agent Support:** Route complex inquiries to specialized virtual experts automatically.
+- **Sales & Lead Management:** Qualify leads via WhatsApp and sync data directly to Google Sheets or CRMs.
+- **Automated Bookings:** Manage appointments and reservations through seamless Google Calendar integration.
+- **Advanced Multimedia Analysis:** Process and analyze images or documents sent by users using OpenAI's Vision capabilities.
+- **Intelligent Task Automation:** Handle repetitive tasks with context-aware agents that maintain thread continuity across shifts.
+
+## Dependencies for WhatsApp Multiagent AI Bot Hosting
+
+- **AI Engine:** OpenAI Assistant API (V2) with specialized Multi-Agent routing logic.
+- **Messaging:** Multi-provider support (WhatsApp Web Baileys, YCloud API).
+- **Integraciones:** Google Workspace (Sheets, Calendar), Supabase, Amadeus Travel API.
+- **Stack:** Node.js, pnpm, Docker, TypeScript.
+
+### Deployment Dependencies
+
+- [BuilderBot Documentation](https://builderbot.vercel.app/)
+- [OpenAI Platform](https://platform.openai.com/)
+- [Google Cloud Console](https://console.cloud.google.com/)
+- [YCloud Provider](https://www.ycloud.com/)
+
+---
+
+## Contact
+
+Desarrollado por Pereyra Hugo - pereyrahugor@gmail.com
+Sitio web: https://clientesneurolinks.com/
+Sitio web: https://duskcodes.com.ar/
