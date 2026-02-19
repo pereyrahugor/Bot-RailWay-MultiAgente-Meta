@@ -9,7 +9,7 @@ import fs from "fs";
 
 const setTime = Number(process.env.timeOutCierre) * 60 * 1000; // tiempo configurable desde .env
 
-export const welcomeFlowVoice = addKeyword<BaileysProvider, MemoryDB>(EVENTS.VOICE_NOTE)
+export const welcomeFlowVoice = addKeyword<any, any>(EVENTS.VOICE_NOTE)
     .addAction(async (ctx, { gotoFlow, flowDynamic, state, provider }) => {
         const userId = ctx.from;
         

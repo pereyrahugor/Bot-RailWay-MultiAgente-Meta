@@ -37,7 +37,7 @@ export async function getAddressFromCoordinates(lat: number, lng: number) {
     }
 }
 
-export const locationFlow = addKeyword(EVENTS.LOCATION).addAction(
+export const locationFlow = addKeyword<any, any>(EVENTS.LOCATION).addAction(
     async (ctx, { flowDynamic, provider, gotoFlow, state }) => {
         reset(ctx, gotoFlow, setTime);
         console.log("📍 Ubicación recibida:", ctx.message);

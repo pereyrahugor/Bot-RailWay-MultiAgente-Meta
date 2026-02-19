@@ -5,7 +5,7 @@ import { reset } from "../utils/timeOut";
 import { handleQueue, userQueues, userLocks } from "../utils/queue";
 const setTime = Number(process.env.timeOutCierre) * 60 * 1000; // tiempo configurable desde .env
 
-export const welcomeFlowTxt = addKeyword<BaileysProvider, MemoryDB>(EVENTS.WELCOME)
+export const welcomeFlowTxt = addKeyword<any, any>(EVENTS.WELCOME)
     .addAction(async (ctx, { gotoFlow, flowDynamic, state, provider }) => {
         const userId = ctx.from;
 

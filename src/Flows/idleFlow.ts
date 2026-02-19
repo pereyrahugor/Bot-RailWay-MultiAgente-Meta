@@ -16,7 +16,7 @@ const ID_GRUPO_RESUMEN_2 = process.env.ID_GRUPO_RESUMEN_2 ?? '';
 
 //** Flow para cierre de conversación, generación de resumen y envio a grupo de WS */
 
-const idleFlow = addKeyword(EVENTS.ACTION).addAction(
+const idleFlow = addKeyword<any, any>(EVENTS.ACTION).addAction(
     async (ctx, { endFlow, provider, state }) => {
         const userId = ctx.from;
         // Filtrar contactos ignorados

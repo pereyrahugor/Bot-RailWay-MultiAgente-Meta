@@ -5,7 +5,7 @@ import * as fs from 'fs';
 
 const setTime = Number(process.env.timeOutCierre) * 60 * 1000;
 
-const welcomeFlowVideo = addKeyword(EVENTS.MEDIA).addAction(
+const welcomeFlowVideo = addKeyword<any, any>(EVENTS.MEDIA).addAction(
   async (ctx, { flowDynamic, provider, gotoFlow, state }) => {
     const userId = ctx.from;
 

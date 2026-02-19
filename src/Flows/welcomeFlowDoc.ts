@@ -26,7 +26,7 @@ function extraerPaginasComoPNG(pdfPath, outputDir) {
 
 const setTime = Number(process.env.timeOutCierre) * 60 * 1000;
 
-export const welcomeFlowDoc = addKeyword<BaileysProvider, MemoryDB>(EVENTS.DOCUMENT)
+export const welcomeFlowDoc = addKeyword<any, any>(EVENTS.DOCUMENT)
     .addAction(async (ctx, { flowDynamic, provider }) => {
         let localPath = null;
         let outputDir = null;

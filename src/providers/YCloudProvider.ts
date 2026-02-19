@@ -1,4 +1,4 @@
-import { ProviderClass } from '@builderbot/bot';
+import { ProviderClass, EVENTS } from '@builderbot/bot';
 import axios from 'axios';
 
 class YCloudProvider extends ProviderClass {
@@ -31,28 +31,38 @@ class YCloudProvider extends ProviderClass {
         return [];
     };
 
-    public async saveFile(ctx: any, options: { path: string }) {
+    private normalizeType(msg: any): string {
+        const type = msg.type;
+        if (type === 'audio') return msg.audio?.voice ? EVENTS.VOICE_NOTE : EVENTS.MEDIA;
+        if (type === 'image' || type === 'video') return EVENTS.MEDIA;
+        if (type === 'document') return EVENTS.DOCUMENT;
+        if (type === 'location') return EVENTS.LOCATION;
+        if (type === 'interactive' || type === 'button') return EVENTS.ACTION;
+        return type;
+    }
+
+    public async saveFile(ctx: any, { path: folderPath }: { path: string }) {
         try {
             const fs = await import('fs');
             const path = await import('path');
-            const media = ctx.media || ctx.payload?.image || ctx.payload?.video || ctx.payload?.document || ctx.payload?.audio;
+            const apiKey = process.env.YCLOUD_API_KEY;
             
-            if (!media) return null;
-
-            const fileUrl = media.link || media.url;
+            const media = ctx.payload?.image || ctx.payload?.video || ctx.payload?.audio || ctx.payload?.document;
             
-            if (!fileUrl && media.id) {
-                console.log(`[YCloudProvider] Media ID detectado: ${media.id}. Sin link directo.`);
+            if (!media || !media.link) {
+                console.log(`[YCloudProvider] No se detectó media o link para descargar.`);
                 return null;
             }
 
-            if (!fileUrl) return null;
+            console.log(`[YCloudProvider] Descargando archivo multimedia...`);
+            const response = await axios.get(media.link, { 
+                responseType: 'arraybuffer',
+                headers: { 'X-API-Key': apiKey } 
+            });
 
-            console.log(`[YCloudProvider] Descargando archivo desde: ${fileUrl}`);
-            const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
-            const ext = path.extname(fileUrl) || (media.mimetype ? `.${media.mimetype.split('/')[1]}` : '.bin');
+            const ext = path.extname(media.link) || (media.mime_type ? `.${media.mime_type.split('/')[1]}` : '.bin');
             const fileName = `${Date.now()}-${media.id || 'file'}${ext}`;
-            const fullPath = path.join(options.path, fileName);
+            const fullPath = path.join(folderPath, fileName);
             
             fs.writeFileSync(fullPath, response.data);
             return fullPath;
@@ -150,43 +160,26 @@ class YCloudProvider extends ProviderClass {
                     if (incomingDestNumber && incomingDestNumber !== myWabaNumber) return;
                 }
 
+                const normalizedType = this.normalizeType(msg);
                 const formatedMessage: any = {
-                    body: msg.text?.body || msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || msg.button?.text || '',
                     from: msg.wa_id || msg.from.replace('+', ''),
                     phoneNumber: msg.from.replace('+', ''),
                     name: msg.customerProfile?.name || 'User',
-                    type: msg.type,
+                    type: normalizedType,
+                    body: normalizedType.startsWith('_event_') ? normalizedType : (msg.text?.body || msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || msg.button?.text || ''),
                     payload: msg,
-                    message: {}
-                };
-
-                // Inyectar compatibilidad con Baileys y estandarizar media
-                if (msg.location) {
-                    formatedMessage.message.location = {
-                        degreesLatitude: msg.location.latitude,
-                        degreesLongitude: msg.location.longitude
-                    };
-                }
-                
-                const mediaObject = msg.image || msg.audio || msg.video || msg.document;
-                if (mediaObject) {
-                    formatedMessage.media = { 
-                        link: mediaObject.link || mediaObject.url, 
-                        mimetype: mediaObject.mime_type || mediaObject.mimetype 
-                    };
-                    
-                    if (msg.image) {
-                        formatedMessage.message.imageMessage = { mimetype: msg.image.mime_type };
-                        formatedMessage.body = '_event_media_';
+                    message: {
+                        location: msg.location ? { degreesLatitude: msg.location.latitude, degreesLongitude: msg.location.longitude } : null,
+                        audioMessage: msg.audio ? { mimetype: msg.audio.mime_type } : null,
+                        imageMessage: msg.image ? { mimetype: msg.image.mime_type } : null,
+                        videoMessage: msg.video ? { mimetype: msg.video.mime_type } : null,
+                        documentMessage: msg.document ? { mimetype: msg.document.mime_type } : null
                     }
-                    if (msg.audio) formatedMessage.message.audioMessage = { mimetype: msg.audio.mime_type };
-                    if (msg.video) formatedMessage.message.videoMessage = { mimetype: msg.video.mime_type };
-                    if (msg.document) formatedMessage.message.documentMessage = { mimetype: msg.document.mime_type };
-                }
+                };
 
                 this.emit('message', formatedMessage);
             }
-            // 2. Formato Meta
+            // 2. Formato Meta (Directo si no pasa por el transformador de YCloud o similar)
             else if (body.object === 'whatsapp_business_account' || body.entry) {
                 body.entry?.forEach((entry: any) => {
                     entry.changes?.forEach((change: any) => {
@@ -202,38 +195,22 @@ class YCloudProvider extends ProviderClass {
                             const wa_id = contact?.wa_id;
 
                             value.messages.forEach((msg: any) => {
+                                const normalizedType = this.normalizeType(msg);
                                 const formatedMessage: any = {
-                                    body: msg.text?.body || msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || msg.button?.text || '',
                                     from: wa_id || msg.from.replace('+', ''),
                                     phoneNumber: msg.from.replace('+', ''),
                                     name: contact?.profile?.name || 'User',
-                                    type: msg.type,
+                                    type: normalizedType,
+                                    body: normalizedType.startsWith('_event_') ? normalizedType : (msg.text?.body || msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || msg.button?.text || ''),
                                     payload: msg,
-                                    message: {}
-                                };
-
-                                if (msg.location) {
-                                    formatedMessage.message.location = {
-                                        degreesLatitude: msg.location.latitude,
-                                        degreesLongitude: msg.location.longitude
-                                    };
-                                }
-
-                                const mediaObject = msg.image || msg.audio || msg.video || msg.document;
-                                if (mediaObject) {
-                                    formatedMessage.media = { 
-                                        link: mediaObject.link || mediaObject.url, 
-                                        mimetype: mediaObject.mime_type || mediaObject.mimetype 
-                                    };
-
-                                    if (msg.image) {
-                                        formatedMessage.message.imageMessage = { mimetype: msg.image.mime_type };
-                                        formatedMessage.body = '_event_media_';
+                                    message: {
+                                        location: msg.location ? { degreesLatitude: msg.location.latitude, degreesLongitude: msg.location.longitude } : null,
+                                        audioMessage: msg.audio ? { mimetype: msg.audio.mime_type } : null,
+                                        imageMessage: msg.image ? { mimetype: msg.image.mime_type } : null,
+                                        videoMessage: msg.video ? { mimetype: msg.video.mime_type } : null,
+                                        documentMessage: msg.document ? { mimetype: msg.document.mime_type } : null
                                     }
-                                    if (msg.audio) formatedMessage.message.audioMessage = { mimetype: msg.audio.mime_type };
-                                    if (msg.video) formatedMessage.message.videoMessage = { mimetype: msg.video.mime_type };
-                                    if (msg.document) formatedMessage.message.documentMessage = { mimetype: msg.document.mime_type };
-                                }
+                                };
 
                                 this.emit('message', formatedMessage);
                             });
